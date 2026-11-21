@@ -4,7 +4,7 @@
 Run it (IDLE: F5) and type sizes when asked.  Accepted forms:
 
     3            -> 3x3x3 cube
-    3x4          -> 3x3x4   (square base, height 4)
+    5x3          -> 5x3x3   (5 layers long, 3x3 square ends, like a 5x3 cube)
     2x3x4        -> 2x3x4
     3x3x2, 2x3x4 -> several puzzles at once (comma separated)
 
@@ -17,9 +17,12 @@ Writes "Cuboid AxBxC.xml" ("Cube NxNxN.xml" when all three are equal) and
 Figures\\Cuboid.xml next to this script.
 
 Turning rules: a layer turn rotates the cross-section of the other two
-directions.  If that cross-section is square the layer turns by 90 degrees,
-otherwise only by 180 degrees (as on a real 3x3x2).  Directions that have only
-1 layer get no turns.
+directions.  If that cross-section is square the layer turns by 90 degrees and
+keeps the cuboid shape.  If it is a rectangle, the layer can still be turned by
+90 degrees (QUARTER_TURNS_ON_RECTANGLES = True; the cuboid becomes shape-shifted
+and pcubes blocks turns that would cut through pieces) and by 180 degrees (which
+keeps the shape, as on a real 3x3x2).  Scrambling only uses shape-keeping turns.
+Directions that have only 1 layer get no turns.
 """
 import math
 import os
@@ -29,6 +32,8 @@ from datetime import date
 
 # ---------------------------------------------------------------- settings
 DENOM = 6                     # layer thickness = 2/DENOM = 1/3 (the 3x3x3 cube has W = 0.5)
+QUARTER_TURNS_ON_RECTANGLES = True   # also allow 90-degree turns where the cross-section is a rectangle
+                              # (the cuboid then changes shape until you turn it back); False = 180 only
 FIGURE_FILE = "Figures\\Cuboid.xml"
 MENU_FOLDER = "Cubic\\Cuboids"
 PROGRAMMER = ""               # put your name here (omitted when empty)
@@ -101,8 +106,9 @@ def make_xml(dims):
         if n < 2:
             continue
         p, q = [dims[j] for j in range(3) if j != k]
-        angle = "Pi / 2" if p == q else "Pi"
-        info.append({"k": k, "n": n, "angle": angle, "planes": "; ".join(plane_list(n))})
+        square = p == q
+        angle = "Pi / 2" if (square or QUARTER_TURNS_ON_RECTANGLES) else "Pi"
+        info.append({"k": k, "n": n, "angle": angle, "square": square, "planes": "; ".join(plane_list(n))})
     if not info:
         raise ValueError("at least one direction needs 2 or more layers")
 
@@ -166,12 +172,12 @@ def make_xml(dims):
     ap("")
 
     def rand_turn(a):
-        ang = "Pi/2 * (Random(3) + 1)" if a["angle"] == "Pi / 2" else "Pi"
+        ang = "Pi/2 * (Random(3) + 1)" if a["square"] else "Pi"        # scramble keeps the cuboid shape
         return a["index"], a["n"], ang
 
     total = sum(a["n"] for a in info)
     turns = max(100, 10 * total)
-    same = len({(a["n"], a["angle"]) for a in info}) == 1
+    same = len({(a["n"], a["square"]) for a in info}) == 1
     if same:                                               # like the original cube file
         a = info[0]
         ap('        <Macro Name = "RandomTurn" >')
@@ -199,7 +205,7 @@ def parse(spec):
     if len(nums) == 1:
         nums = nums * 3
     elif len(nums) == 2:
-        nums = [nums[0], nums[0], nums[1]]
+        nums = [nums[0], nums[1], nums[1]]
     if len(nums) != 3 or min(nums) < 1:
         raise ValueError("type 1, 2 or 3 positive numbers, like 3 or 3x4 or 2x3x4")
     return tuple(nums)
@@ -226,7 +232,7 @@ def write_many(specs):
 
 def ask():
     while True:
-        s = input("Size (3 = cube, 3x4 = 3x3x4, 2x3x4, several with commas), blank = quit: ").strip()
+        s = input("Size (3 = cube, 5x3 = 5x3x3, 2x3x4, several with commas), blank = quit: ").strip()
         if not s:
             return
         write_many([x for x in s.split(",") if x.strip()])
