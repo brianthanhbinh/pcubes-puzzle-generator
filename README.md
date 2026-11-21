@@ -15,3 +15,9 @@ run a exe, a terminal will popup
 type the cube size or sth (just do what it say)
 
 done, drag the xml file to pcubes or put it inside /puzzles
+
+# Requirement:
+
+Pcube
+
+if you dont have pcubes. install here: https://github.com/BMouradov/pCubes
